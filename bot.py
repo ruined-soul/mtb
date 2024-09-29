@@ -1,33 +1,39 @@
 import logging
 import os
 import subprocess
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ParseMode
-from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Filters, Updater
-from telegram.ext.dispatcher import run_async
-from functools import wraps
 import importlib
 import sys
-import json
-import datetime
+from flask import Flask, request
+from telegram import Update, ParseMode
+from telegram.ext import CommandHandler, CallbackQueryHandler, Dispatcher
+from functools import wraps
+from telegram import Bot
 
 # BOT OWNER SETTINGS
 OWNER_ID = 1159381624  # Your ID here
-LOG_CHANNEL_ID = -100123456789  # Your private log channel ID
-JOIN_LEAVE_LOG_CHANNEL = -100987654321  # GC for join/leave logs
-BAN_LOG_CHANNEL = -100111222333  # GC for ban logs
 LOG_FILE = "bot.log"
 PLUGINS_FOLDER = "plugins/"
 HELP_REGISTRY = {}
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Initialize logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name)
+
+# Initialize the Telegram bot
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"  # Replace with your bot token
+bot = Bot(token=TOKEN)
 
 # Check if plugins folder exists
 if not os.path.exists(PLUGINS_FOLDER):
     os.makedirs(PLUGINS_FOLDER)
+
+# Initialize Dispatcher
+dispatcher = Dispatcher(bot, None)
 
 # Utility: Check if user is the bot owner
 def owner_only(func):
@@ -151,11 +157,6 @@ def help_callback(update, context):
     help_text = HELP_REGISTRY.get(category, "No help available for this category.")
     query.edit_message_text(help_text, parse_mode=ParseMode.MARKDOWN)
 
-# Logging for join/leave events
-def log_join_leave_event(update, context):
-    # log join/leave events and report to private GC
-    pass  # Implement this part
-
 # Reset command to reset bot cache and data
 @owner_only
 def reset(update, context):
@@ -168,34 +169,20 @@ def restart(update, context):
     update.message.reply_text("Bot restarting...")
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-# Notify owner on start or restart
-def notify_owner_start(context):
-    context.bot.send_message(OWNER_ID, "Bot has started successfully!")
+# Webhook handler
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return 'ok', 200
 
-# Main function to start the bot
-def main():
-    updater = Updater("7410637757:AAGfu2Em_j31Qieqop9uzSum89P9SLM1J9k", use_context=True)
-    dp = updater.dispatcher
+# Set the webhook
+def set_webhook():
+    webhook_url = "https://chronic-annette-xexa-e31683de.koyeb.app/webhook"  # Replace with your Koyeb URL
+    bot.setWebhook(webhook_url)
 
-    # Register command handlers
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("dev", dev))
-    dp.add_handler(CommandHandler("devhelp", dev_help))
-    dp.add_handler(CommandHandler("install", install))
-    dp.add_handler(CommandHandler("uninstall", uninstall))
-    dp.add_handler(CommandHandler("export", export_plugins))
-    dp.add_handler(CommandHandler("log", get_logs))
-    dp.add_handler(CommandHandler("reset", reset))
-    dp.add_handler(CommandHandler("restart", restart))
-    dp.add_handler(CommandHandler("help", help_command))
-    dp.add_handler(CallbackQueryHandler(help_callback))
-
-    # Notify owner when the bot starts
-    updater.job_queue.run_once(notify_owner_start, 0)
-
-    # Start the bot
-    updater.start_polling()
-    updater.idle()
-
+# Start Flask app
 if __name__ == "__main__":
-    main()
+    # Set the webhook first
+    set_webhook()
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
