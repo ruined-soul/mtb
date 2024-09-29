@@ -5,7 +5,7 @@ import importlib
 import sys
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode  # Corrected import
-from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Filters, Updater
+from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, filters, Updater
 from telegram.ext import CallbackContext
 from flask import Flask, request
 
