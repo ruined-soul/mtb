@@ -1,5 +1,5 @@
 python-telegram-bot==13.14
 urllib3==1.26.15
-flask
+Flask==2.0.3
 requests
 parsel
